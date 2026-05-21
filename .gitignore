@@ -1,0 +1,12 @@
+# Dependencies (reinstall with `npm install` if you want to run the CLI locally)
+node_modules/
+
+# OS / editor
+.DS_Store
+*.log
+*.swp
+.idea/
+.vscode/
+
+# npm pack artifacts
+*.tgz
