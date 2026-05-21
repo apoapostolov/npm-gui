@@ -166,6 +166,16 @@ function getOutdated(force = false) {
   }
 }
 
+function findPrefixForPackage(name) {
+  try {
+    const a = run(NPMG);
+    if (a && a.dependencies && a.dependencies[name]) return NPMG;
+    const b = run(NVMN);
+    if (b && b.dependencies && b.dependencies[name]) return NVMN;
+  } catch {}
+  return NPMG; // default for new global packages
+}
+
 const mode = process.argv[2];
 const pkg = process.argv[3];
 
@@ -188,4 +198,20 @@ if (mode === 'ls') {
     outdatedCache = { ts: 0, data: null };
   } catch {}
   console.log('{}');
+} else if (mode === 'install-pkg') {
+  const name = process.argv[3];
+  const ver = process.argv[4] || 'latest';
+  if (!name) {
+    console.log('{}');
+  } else {
+    const prefix = findPrefixForPackage(name);
+    try {
+      const cmd = `npm install ${name}@${ver} --prefix ${prefix} -g --json 2>/dev/null`;
+      execSync(cmd, { encoding: 'utf8', timeout: 180000 });
+    } catch (err) {
+      // npm install -g often exits non-zero even on partial success or warnings.
+      // We still want to let the caller re-query ls/outdated so the UI can reflect reality.
+    }
+    console.log(JSON.stringify({ ok: true, prefix }));
+  }
 }
