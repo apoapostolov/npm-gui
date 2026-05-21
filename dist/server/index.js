@@ -1,1 +1,909 @@
-var e=require("open"),n=require("cross-spawn"),t=require("fs"),a=require("path"),r=require("https"),s=require("http");function o(e){return e&&e.__esModule?e.default:e}const i=e=>null!=e,c=(e,t)=>(console.log(`Command: ${t}, started`),new Promise(((a,r)=>{const s=t.split(" "),i=s.shift();if(i){var c,l;const t=o(n)(i,s,{cwd:e,detached:!1});let p="";null===(c=t.stdout)||void 0===c||c.on("data",(e=>{p+=e.toString()}));let d="";null===(l=t.stderr)||void 0===l||l.on("data",(e=>{d+=e.toString()})),t.on("close",(e=>{process.env.NODE_TEST,0===e?a({stdout:p,stderr:d}):r(p+d)})),t.on("error",(()=>{r(d)}))}else r(new Error("command not passed"))}))),l=async(e,n)=>{const{stdout:t}=await c(e,n);return t};async function p(e,n){try{const{stdout:t}=await c(e,n);return process.env.NODE_TEST||console.log("OK:",n),t?JSON.parse(t):{}}catch(e){return process.env.NODE_TEST||console.log("ERROR:",n,"\n",e),JSON.parse(e.replace(/(\n{[\S\s]+)?npm ERR[\S\s]+/gm,""))}}async function d(e,n){try{const{stdout:t,stderr:a}=await c(e,n);process.env.NODE_TEST||console.log("OK:",n);const r=(t+a).trim().split("\n").filter((e=>e)).map((e=>JSON.parse(e))),s=r.find((e=>"type"in e&&"table"===e.type));if(s)return s;const o=r.find((e=>"type"in e&&"error"===e.type));if(o)return o}catch(e){if(process.env.NODE_TEST||console.log("ERROR:",n,"\n",e),"string"==typeof e){const n=e.trim().split("\n").filter((e=>e)).map((e=>JSON.parse(e))),t=n.find((e=>"type"in e&&"table"===e.type));if(t)return t;const a=n.find((e=>"type"in e&&"error"===e.type));if(a)return a}return JSON.parse(e)}}let m={};const u=e=>m[e],y=(e,n)=>{m[e]=n},g=(e,n)=>{const t=m[e];if(t){const e=t.findIndex((e=>n.name===e.name));e>=0?t[e]=n:t.push(n)}},f=(e,n)=>{const t=m[e];if(t){const e=t.findIndex((e=>n===e.name));e>=0&&t.splice(e,1)}},h=e=>{void 0===e?m={}:y(e)},v=(e,n)=>void 0===e||n.includes(e)?null:e,w=e=>e?"version"in e?e.version:"invalid"in e||"missing"in e||"extraneous"in e?null:"required"in e?"string"==typeof e.required?null:e.required.version:null:null,j=(e,n)=>null!==e&&n?v(n.wanted,[e]):null,x=(e,n,t)=>null!==e&&t?v(t.latest,[e,n]):null,$=e=>{let n=null;try{n=JSON.parse(e)}catch{return console.error("JSON error",e,"#"),null}return n},S=e=>{const n=o(a).join(e,"package.json");return(0,t.existsSync)(n)?$((0,t.readFileSync)(n,{encoding:"utf8"})):null},b=e=>{const n=S(e);return null!==n&&"dependencies"in n&&null!==(t=n.dependencies)&&void 0!==t?t:{};var t},k=(e,n)=>{const t=b(e),a=(e=>{const n=S(e);return null!==n&&"devDependencies"in n&&null!==(t=n.devDependencies)&&void 0!==t?t:{};var t})(e);return[...Object.entries(t).map((([e,t])=>({manager:n,name:e,type:"prod",required:t}))),...Object.entries(a).map((([e,t])=>({manager:n,name:e,type:"dev",required:t})))]},P=(e,n)=>{const t=S(e);if(null===t)return console.log("ERROR????"),"extraneous";const{dependencies:a,devDependencies:r}=t;return a&&n in a?"prod":r&&n in r?"dev":"extraneous"},O=(e,n)=>{const t=S(e);if(null===t)return;const{dependencies:a,devDependencies:r}=t;return a&&n in a?a[n]:r&&n in r?r[n]:void 0},E=async(e,n,t=!1)=>{try{await l(n,`pnpm outdated ${t?"--compatible":""} --no-table`)}catch(n){if("string"==typeof n){const a=n.replace((()=>{const e=["[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)","(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))"].join("|");return new RegExp(e,"g")})(),"").split("\n");let r="";for(const n of a){const a=/=>.([\d.]+)/.exec(n);a?e[r]={...e[r],[t?"wanted":"latest"]:a[1]}:r=n.replace("(dev)","").trim()}}}},D=e=>{if(!e||!e.data)return{};const n=e.data.head.indexOf("Package"),t=e.data.head.indexOf("Wanted"),a=e.data.head.indexOf("Latest"),r=e.data.head.indexOf("Current"),s={};for(const o of e.data.body){s[o[n]]={wanted:o[t],latest:o[a],current:o[r]}}return s},N=async(e,n,t)=>{const a=`npm install ${n.map((e=>`${e.name}${e.version?`@${e.version}`:""}`)).join(" ")} -${"prod"===t?"P":"D"} --json`;if(await l(e,a),1===n.length&&n[0])return(async(e,n)=>{const{dependencies:t}=await p(e,`npm ls ${n} --depth=0 --json`),a=await p(e,`npm outdated ${n} --json`),r=P(e,n),s=O(e,n),o=w(t?t[n]:void 0),i=j(o,a[n]);return{manager:"npm",required:s,name:n,type:r,installed:o,wanted:i,latest:x(o,i,a[n])}})(e,n[0].name)},T=async(e,n,t)=>{const a=`pnpm install ${n.map((e=>`${e.name}${e.version?`@${e.version}`:""}`)).join(" ")} -${"prod"===t?"P":"D"}`;if(await l(e,a),1===n.length&&n[0])return(async(e,n)=>{const[{devDependencies:t,dependencies:a}]=await p(e,`pnpm ls ${n} --depth=0 --json`),r={...t,...a},s={};await E(s,e),await E(s,e,!0);const o=P(e,n),i=O(e,n),c=w(r[n]),l=j(c,s[n]);return{manager:"pnpm",required:i,name:n,type:o,installed:c,wanted:l,latest:x(c,l,s[n])}})(e,n[0].name)},q=async(e,n,t)=>{const a=`yarn add ${n.map((e=>`${e.name}${e.version?`@${e.version}`:""}`)).join(" ")}${"prod"===t?"":" -D"}`;if(await l(e,a),1===n.length&&n[0])return(async(e,n)=>{const{data:{trees:t}}=await p(e,`yarn list --pattern ${n} --depth=0 --json`),a=await d(e,`yarn outdated ${n} --json`),r=D(a),s=P(e,n),o=O(e,n),i=t.find((e=>e.name.split("@")[0]===n)),c=null==i?void 0:i.name.split("@")[1],l=j(c,r[n]),m=x(c,l,r[n]);return{manager:"yarn",required:o,name:n,type:s,installed:c,wanted:l,latest:m}})(e,n[0].name)},R={prod:"-S",dev:"-D",global:"-g",extraneous:""},C=(e,n=10)=>{const t=[];for(let a=0;a<e.length;a+=n){const r=e.slice(a,a+n);t.push(r)}return t},I={},_=async(e,n)=>{var t,a;const r=I[`${n}-${e}`];if(r)return r;const s=await p(void 0,`${n} info ${e} --json`),o="yarn"===n?s.data:s,i=(e=>e.slice(0,Math.max(0,e.lastIndexOf("@"))))(e),c=(e=>e.slice(Math.max(0,e.lastIndexOf("@")+1)))(e);return I[`${n}-${e}`]={name:i,version:c,versions:o.versions,homepage:o.homepage,repository:null===(t=o.repository)||void 0===t?void 0:t.url,size:+o.dist.unpackedSize,time:o.time,updated:o.time.modified,created:o.time.created},{name:i,version:c,versions:o.versions,homepage:o.homepage,repository:null===(a=o.repository)||void 0===a?void 0:a.url,size:+o.dist.unpackedSize,time:o.time,updated:o.time.modified,created:o.time.created}},z=(e,n)=>new Promise(((t,a)=>{const s={hostname:e,port:443,path:encodeURI(n),method:"GET",headers:{"User-Agent":"npm-gui"}},i=o(r).request(s,(e=>{let n="";e.on("data",(e=>{n+=e.toString()})),e.on("end",(()=>{t(n)}))}));i.on("error",(e=>{a(e)})),i.end()})),J={},M=async e=>{const n=J[e];if(n)return n;try{var t,a;const n=null===(t=(await z("snyk.io",`/advisor/npm-package/${e}/badge.svg`)).match(/>(?<score>\d+)\//))||void 0===t||null===(a=t.groups)||void 0===a?void 0:a.score;return n?(J[e]={name:e,score:+n},J[e]):void 0}catch(e){return void console.error(e)}},U=(e,n)=>k(e,n),A=e=>{let n=[];if((0,t.existsSync)(e)){n=(0,t.readdirSync)(e);for(const[,a]of n.entries()){const n=`${e}/${a}`;(0,t.lstatSync)(n).isDirectory()?A(n):(0,t.unlinkSync)(n)}(0,t.rmdirSync)(e)}},B=e=>o(a).normalize(Buffer.from(e,"base64").toString()),H=({params:e})=>{let n=void 0!==e.path?o(a).normalize(B(e.path)):null,r=!1;null!==n&&(0,t.existsSync)(n)||(n=process.cwd(),r=!0);return{ls:(0,t.readdirSync)(n).map((e=>({name:e,isDirectory:(0,t.lstatSync)(`${n}/${e}`).isDirectory(),isProject:["package.json","package-lock.json","yarn.lock","pnpm-lock.yaml"].includes(e)}))),changed:r,path:n}};function F(e,n,t){return n in e?Object.defineProperty(e,n,{value:t,enumerable:!0,configurable:!0,writable:!0}):e[n]=t,e}var L=a.resolve(__dirname,"../server");const Z={".html":"text/html",".js":"text/javascript",".css":"text/css",".json":"application/json",".png":"image/png",".jpg":"image/jpg",".gif":"image/gif",".svg":"image/svg+xml",".wav":"audio/wav",".mp4":"video/mp4",".woff":"font/woff",".woff2":"font/woff2",".ttf":"font/ttf",".eot":"vnd/ms-fontobject",".otf":"font/otf",".wasm":"application/wasm",".map":"application/json",".css.map":"application/json",".js.map":"application/json"};class G{static parseUrlParams(e,n){const t=e.split(/:\w+/g).filter((e=>e)).reduce(((e,n)=>e.replace(n,"|")),n).split("|").filter((e=>e)),a=e.match(/:\w+/g),r=null==a?void 0:a.reduce(((e,n,a)=>({...e,[n.replace(":","")]:t[a]})),{});return null!=r?r:{}}static async readBody(e){return new Promise((n=>{let t="";e.on("data",(e=>{t+=e})),e.on("end",(()=>{try{n(JSON.parse(t))}catch{n({})}}))}))}listen(e,n){this.server.listen(e,n),console.log("listening on:",n,e)}use(e,n){this.middlewares.push({url:e,callback:n})}get(e,n){this.responsers.push({url:e,method:"GET",callback:n})}post(e,n){this.responsers.push({url:e,method:"POST",callback:n})}delete(e,n){this.responsers.push({url:e,method:"DELETE",callback:n})}any(e,n){this.responsers.push({url:e,callback:n})}async onIncomingMessage(e,n){let r={xCacheId:e.headers["x-cache-id"]};const s=await G.readBody(e);try{for(const n of this.middlewares){const t=new RegExp(n.url.replace(/:\w+/g,".+"));if(void 0!==e.url&&t.test(e.url)){const t=G.parseUrlParams(n.url,e.url),a=n.callback({params:t,extraParams:r});r={...r,...a}}}for(const t of this.responsers){const a=new RegExp(t.url.replace(/:\w+/g,".+")),o=void 0===t.method||t.method===e.method;if(!n.headersSent&&void 0!==e.url&&o&&a.test(e.url)){const a=G.parseUrlParams(t.url,e.url),o=await t.callback({params:a,extraParams:r,body:s});"string"==typeof o?(n.writeHead(200,{"Content-Type":"text/html"}),n.write(o,"utf-8")):(n.writeHead(200,{"Content-Type":"application/json"}),n.write(JSON.stringify(o),"utf-8"))}}}catch(e){process.env.NODE_TEST||console.error("ERROR HANDLER",e),n.writeHead(400,{"Content-Type":"application/json"}),n.write(JSON.stringify(e),"utf-8")}if(!n.headersSent&&void 0!==e.url){const r=o(a).join(L,"../",e.url);if("/"===e.url)n.write(o(t).readFileSync(o(a).join(L,"../","client","index.html"),"utf-8"));else if(o(t).existsSync(r)){const e=o(a).extname(r).toLowerCase(),s=Z[e];n.writeHead(200,{"Content-Type":s}),n.write(o(t).readFileSync(r,s.includes("text")?"utf-8":void 0))}else n.write(o(t).readFileSync(o(a).join(L,"../","client","index.html"),"utf-8"))}n.end()}constructor(){F(this,"middlewares",[]),F(this,"responsers",[]),this.server=o(s).createServer(this.onIncomingMessage.bind(this))}}const K=new G;K.use("/api/project/:projectPath/",(({params:{projectPath:e}})=>{const n=B(e),r=(e=>(0,t.existsSync)(o(a).join(e,"yarn.lock")))(n),s=(e=>(0,t.existsSync)(o(a).join(e,"package.json")))(n),i=(e=>(0,t.existsSync)(o(a).join(e,"pnpm-lock.yaml")))(n);if(!r&&!s&&!i)throw new Error("invalid project structure!");let c="npm";return i?c="pnpm":r&&(c="yarn"),{projectPathDecoded:n,manager:c,xCache:"any"}})),K.get("/api/project/:projectPath/dependencies/simple",(({extraParams:{projectPathDecoded:e,manager:n}})=>U(e,n))),K.get("/api/project/:projectPath/dependencies/full",(async({extraParams:{projectPathDecoded:e,manager:n,xCacheId:t}})=>{const a=u(t+n+e);if(a)return a;let r=[];try{r="yarn"===n?await(async e=>{if(void 0!==await d(e,"yarn check --json"))return U(e,"yarn").map((e=>({...e,installed:null,wanted:null,latest:null})));const{data:{trees:n}}=await p(e,"yarn list --depth=0 --json"),t=await d(e,"yarn outdated --json"),a=D(t);return k(e,"yarn").map((e=>{const t=n.find((n=>n.name.split("@")[0]===e.name)),r=null==t?void 0:t.name.split("@")[1],s=j(r,a[e.name]),o=x(r,s,a[e.name]);return{...e,installed:r,wanted:s,latest:o}}))})(e):"pnpm"===n?await(async e=>{const n=b(e),[{devDependencies:t,dependencies:a}]=await p(e,"pnpm ls --depth=0 --json"),r={...t,...a},s={};await E(s,e),await E(s,e,!0);const o=Object.keys(r).filter((e=>!n[e]));return[...k(e,"pnpm"),...o.map((e=>({name:e,type:"extraneous",manager:"pnpm",required:void 0})))].map((e=>{const n=w(r[e.name]),t=j(n,s[e.name]),a=x(n,t,s[e.name]);return{...e,installed:n,wanted:t,latest:a}}))})(e):await(async e=>{const{dependencies:n}=await p(e,"npm ls --depth=0 --json"),t=await p(e,"npm outdated --json"),a=n?Object.keys(n).filter((e=>{const t=n[e];return t&&"extraneous"in t})):[];return[...k(e,"npm"),...a.map((e=>({name:e,type:"extraneous",required:void 0,manager:"npm"})))].map((e=>{const a=w(n?n[e.name]:void 0),r=j(a,t[e.name]),s=x(a,r,t[e.name]);return{...e,installed:a,wanted:r,latest:s}}))})(e)}catch(e){return console.error(e),[]}return y(t+n+e,r),r})),K.post("/api/project/:projectPath/dependencies/install/:forceManager",(async({params:{forceManager:e},extraParams:{projectPathDecoded:n,xCacheId:r}})=>((e=>{(0,t.existsSync)(`${o(a).normalize(e)}/node_modules`)&&A(`${o(a).normalize(e)}/node_modules`);for(const n of["yarn.lock","package-lock.json","pnpm-lock.yaml"])(0,t.existsSync)(`${o(a).normalize(e)}/${n}`)&&(0,t.unlinkSync)(`${o(a).normalize(e)}/${n}`)})(n),await l(n,`${e} install`),h(r+e+n),{}))),K.post("/api/project/:projectPath/dependencies/install",(async({extraParams:{projectPathDecoded:e,manager:n="npm",xCacheId:t}})=>(await l(e,`${n} install`),h(t+n+e),{}))),K.post("/api/project/:projectPath/dependencies/:type",(async({params:{type:e},extraParams:{projectPathDecoded:n,manager:t,xCacheId:a},body:r})=>{let s;return s="yarn"===t?await q(n,r,e):"pnpm"===t?await T(n,r,e):await N(n,r,e),s?g(a+t+n,s):h(a+t+n),{}})),K.delete("/api/project/:projectPath/dependencies/:type",(async({params:{type:e},extraParams:{projectPathDecoded:n,manager:t,xCacheId:a},body:r})=>{"yarn"===t?await(async(e,n)=>{try{await l(e,`yarn remove ${n.map((e=>e.name)).join(" ")}`)}catch(e){process.env.NODE_TEST||console.log(e)}})(n,r):"pnpm"===t?await(async(e,n)=>{try{await l(e,`pnpm uninstall ${n.map((e=>e.name)).join(" ")}`)}catch(e){process.env.NODE_TEST||console.log(e)}})(n,r):await(async(e,n,t)=>{await l(e,`npm uninstall ${n.map((e=>e.name)).join(" ")} ${R[t]}`)})(n,r,e);for(const e of r)f(a+t+n,e.name);return{}})),K.get("/api/global/dependencies/simple",(async()=>await(async()=>{const{dependencies:e}=await p(void 0,"node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js ls");return e?Object.keys(e).map((n=>({manager:"npm",name:n,type:"global",installed:w(e[n])}))):[]})())),K.get("/api/global/dependencies/full",(async({extraParams:{xCacheId:e}})=>{const n=u(`${e}global`);if(n)return n;const t=await(async()=>{const{dependencies:e}=await p(void 0,"node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js ls");if(!e)return[];const n=await p(void 0,"node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js outdated");return Object.keys(e).map((t=>({manager:"npm",name:t,type:"global",installed:w(e[t]),latest:x(w(e[t]),null,n[t])})))})();return y(`${e}global`,t),t})),K.post("/api/global/dependencies",(async({body:e,extraParams:{xCacheId:n}})=>{for(const s of e||[]){if(!s||!s.name)continue;try{const t=await(async({name:e,version:n})=>{await c(void 0,`node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js install-pkg ${e} ${n||""}`);const{dependencies:t}=await p(void 0,`node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js ls-pkg ${e}`),a=await p(void 0,`node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js outdated-pkg ${e}`),r=w(t?t[e]:void 0);return{manager:"npm",name:e,type:"global",installed:r,latest:x(r,null,a[e])}})(s);g(`${n}global`,t)}catch(err){console.error("global bulk install error for",s&&s.name,err)}}p(void 0,`node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js clear-outdated`).catch(()=>{});return{}}),K.delete("/api/global/dependencies/global/:dependencyName",(async({params:{dependencyName:e},extraParams:{xCacheId:n}})=>(await(async e=>{await c(void 0,`npm uninstall ${e} -g`)})(e),f(`${n}global`,e),{}))),K.get("/api/score/:dependenciesName",(async({params:{dependenciesName:e}})=>{const n=C(e.split(","),5);try{const e=[];for(const t of n){const n=await Promise.all(t.map((e=>M(e))));e.push(...n.filter(i))}return e}catch{return[]}})),K.get("/api/details/:manager/:dependenciesNameVersion",(async({params:{dependenciesNameVersion:e,manager:n}})=>{const t=C(e.split(","));try{const e=[];for(const a of t){const t=await Promise.all(a.map((e=>_(e,n))));e.push(...t.filter(i))}return e}catch(e){return console.error(e),[]}})),K.get("/api/explorer/:path",H),K.get("/api/explorer/",H),K.get("/api/available-managers",(async()=>{let e=!0,n=!0,t=!0;try{await l(void 0,"npm --version")}catch{e=!1}try{await l(void 0,"yarn --version")}catch{n=!1}try{await l(void 0,"pnpm --version")}catch{t=!1}return{npm:e,pnpm:t,yarn:n}})),K.post("/api/search/:repoName",(async({body:{query:e}})=>{const n=await z("api.npms.io",`/v2/search?from=0&size=25&q=${e}`),t=$(n);if(!t)throw new Error("Unable to get package info");return t.results.map((e=>({name:e.package.name,version:e.package.version,score:e.score.final,updated:e.package.date,npm:e.package.links.npm,repository:e.package.links.repository,homepage:e.package.links.homepage,description:e.package.description})))})),K.get("/api/info/:id",(async({params:{id:e}})=>z("v4.npm-gui.nullapps.dev",`/info.html?${e}`)));module.exports={start:(n="localhost",t=3e3,a=!1)=>{K.listen(t,n),a&&o(e)(`http://${n}:${t}`)},app:K};
+var e = require("open"),
+  n = require("cross-spawn"),
+  t = require("fs"),
+  a = require("path"),
+  r = require("https"),
+  s = require("http");
+function o(e) {
+  return e && e.__esModule ? e.default : e;
+}
+const i = (e) => null != e,
+  c = (e, t) => (
+    console.log(`Command: ${t}, started`),
+    new Promise((a, r) => {
+      const s = t.split(" "),
+        i = s.shift();
+      if (i) {
+        var c, l;
+        const t = o(n)(i, s, { cwd: e, detached: !1 });
+        let p = "";
+        null === (c = t.stdout) ||
+          void 0 === c ||
+          c.on("data", (e) => {
+            p += e.toString();
+          });
+        let d = "";
+        (null === (l = t.stderr) ||
+          void 0 === l ||
+          l.on("data", (e) => {
+            d += e.toString();
+          }),
+          t.on("close", (e) => {
+            (process.env.NODE_TEST,
+              0 === e ? a({ stdout: p, stderr: d }) : r(p + d));
+          }),
+          t.on("error", () => {
+            r(d);
+          }));
+      } else r(new Error("command not passed"));
+    })
+  ),
+  l = async (e, n) => {
+    const { stdout: t } = await c(e, n);
+    return t;
+  };
+async function p(e, n) {
+  try {
+    const { stdout: t } = await c(e, n);
+    return (
+      process.env.NODE_TEST || console.log("OK:", n),
+      t ? JSON.parse(t) : {}
+    );
+  } catch (e) {
+    return (
+      process.env.NODE_TEST || console.log("ERROR:", n, "\n", e),
+      JSON.parse(e.replace(/(\n{[\S\s]+)?npm ERR[\S\s]+/gm, ""))
+    );
+  }
+}
+async function d(e, n) {
+  try {
+    const { stdout: t, stderr: a } = await c(e, n);
+    process.env.NODE_TEST || console.log("OK:", n);
+    const r = (t + a)
+        .trim()
+        .split("\n")
+        .filter((e) => e)
+        .map((e) => JSON.parse(e)),
+      s = r.find((e) => "type" in e && "table" === e.type);
+    if (s) return s;
+    const o = r.find((e) => "type" in e && "error" === e.type);
+    if (o) return o;
+  } catch (e) {
+    if (
+      (process.env.NODE_TEST || console.log("ERROR:", n, "\n", e),
+      "string" == typeof e)
+    ) {
+      const n = e
+          .trim()
+          .split("\n")
+          .filter((e) => e)
+          .map((e) => JSON.parse(e)),
+        t = n.find((e) => "type" in e && "table" === e.type);
+      if (t) return t;
+      const a = n.find((e) => "type" in e && "error" === e.type);
+      if (a) return a;
+    }
+    return JSON.parse(e);
+  }
+}
+let m = {};
+const u = (e) => m[e],
+  y = (e, n) => {
+    m[e] = n;
+  },
+  g = (e, n) => {
+    const t = m[e];
+    if (t) {
+      const e = t.findIndex((e) => n.name === e.name);
+      e >= 0 ? (t[e] = n) : t.push(n);
+    }
+  },
+  f = (e, n) => {
+    const t = m[e];
+    if (t) {
+      const e = t.findIndex((e) => n === e.name);
+      e >= 0 && t.splice(e, 1);
+    }
+  },
+  h = (e) => {
+    void 0 === e ? (m = {}) : y(e);
+  },
+  v = (e, n) => (void 0 === e || n.includes(e) ? null : e),
+  w = (e) =>
+    e
+      ? "version" in e
+        ? e.version
+        : "invalid" in e || "missing" in e || "extraneous" in e
+          ? null
+          : "required" in e
+            ? "string" == typeof e.required
+              ? null
+              : e.required.version
+            : null
+      : null,
+  j = (e, n) => (null !== e && n ? v(n.wanted, [e]) : null),
+  x = (e, n, t) => (null !== e && t ? v(t.latest, [e, n]) : null),
+  $ = (e) => {
+    let n = null;
+    try {
+      n = JSON.parse(e);
+    } catch {
+      return (console.error("JSON error", e, "#"), null);
+    }
+    return n;
+  },
+  S = (e) => {
+    const n = o(a).join(e, "package.json");
+    return (0, t.existsSync)(n)
+      ? $((0, t.readFileSync)(n, { encoding: "utf8" }))
+      : null;
+  },
+  b = (e) => {
+    const n = S(e);
+    return null !== n &&
+      "dependencies" in n &&
+      null !== (t = n.dependencies) &&
+      void 0 !== t
+      ? t
+      : {};
+    var t;
+  },
+  k = (e, n) => {
+    const t = b(e),
+      a = ((e) => {
+        const n = S(e);
+        return null !== n &&
+          "devDependencies" in n &&
+          null !== (t = n.devDependencies) &&
+          void 0 !== t
+          ? t
+          : {};
+        var t;
+      })(e);
+    return [
+      ...Object.entries(t).map(([e, t]) => ({
+        manager: n,
+        name: e,
+        type: "prod",
+        required: t,
+      })),
+      ...Object.entries(a).map(([e, t]) => ({
+        manager: n,
+        name: e,
+        type: "dev",
+        required: t,
+      })),
+    ];
+  },
+  P = (e, n) => {
+    const t = S(e);
+    if (null === t) return (console.log("ERROR????"), "extraneous");
+    const { dependencies: a, devDependencies: r } = t;
+    return a && n in a ? "prod" : r && n in r ? "dev" : "extraneous";
+  },
+  O = (e, n) => {
+    const t = S(e);
+    if (null === t) return;
+    const { dependencies: a, devDependencies: r } = t;
+    return a && n in a ? a[n] : r && n in r ? r[n] : void 0;
+  },
+  E = async (e, n, t = !1) => {
+    try {
+      await l(n, `pnpm outdated ${t ? "--compatible" : ""} --no-table`);
+    } catch (n) {
+      if ("string" == typeof n) {
+        const a = n
+          .replace(
+            (() => {
+              const e = [
+                "[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)",
+                "(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))",
+              ].join("|");
+              return new RegExp(e, "g");
+            })(),
+            "",
+          )
+          .split("\n");
+        let r = "";
+        for (const n of a) {
+          const a = /=>.([\d.]+)/.exec(n);
+          a
+            ? (e[r] = { ...e[r], [t ? "wanted" : "latest"]: a[1] })
+            : (r = n.replace("(dev)", "").trim());
+        }
+      }
+    }
+  },
+  D = (e) => {
+    if (!e || !e.data) return {};
+    const n = e.data.head.indexOf("Package"),
+      t = e.data.head.indexOf("Wanted"),
+      a = e.data.head.indexOf("Latest"),
+      r = e.data.head.indexOf("Current"),
+      s = {};
+    for (const o of e.data.body) {
+      s[o[n]] = { wanted: o[t], latest: o[a], current: o[r] };
+    }
+    return s;
+  },
+  N = async (e, n, t) => {
+    const a = `npm install ${n.map((e) => `${e.name}${e.version ? `@${e.version}` : ""}`).join(" ")} -${"prod" === t ? "P" : "D"} --json`;
+    if ((await l(e, a), 1 === n.length && n[0]))
+      return (async (e, n) => {
+        const { dependencies: t } = await p(e, `npm ls ${n} --depth=0 --json`),
+          a = await p(e, `npm outdated ${n} --json`),
+          r = P(e, n),
+          s = O(e, n),
+          o = w(t ? t[n] : void 0),
+          i = j(o, a[n]);
+        return {
+          manager: "npm",
+          required: s,
+          name: n,
+          type: r,
+          installed: o,
+          wanted: i,
+          latest: x(o, i, a[n]),
+        };
+      })(e, n[0].name);
+  },
+  T = async (e, n, t) => {
+    const a = `pnpm install ${n.map((e) => `${e.name}${e.version ? `@${e.version}` : ""}`).join(" ")} -${"prod" === t ? "P" : "D"}`;
+    if ((await l(e, a), 1 === n.length && n[0]))
+      return (async (e, n) => {
+        const [{ devDependencies: t, dependencies: a }] = await p(
+            e,
+            `pnpm ls ${n} --depth=0 --json`,
+          ),
+          r = { ...t, ...a },
+          s = {};
+        (await E(s, e), await E(s, e, !0));
+        const o = P(e, n),
+          i = O(e, n),
+          c = w(r[n]),
+          l = j(c, s[n]);
+        return {
+          manager: "pnpm",
+          required: i,
+          name: n,
+          type: o,
+          installed: c,
+          wanted: l,
+          latest: x(c, l, s[n]),
+        };
+      })(e, n[0].name);
+  },
+  q = async (e, n, t) => {
+    const a = `yarn add ${n.map((e) => `${e.name}${e.version ? `@${e.version}` : ""}`).join(" ")}${"prod" === t ? "" : " -D"}`;
+    if ((await l(e, a), 1 === n.length && n[0]))
+      return (async (e, n) => {
+        const {
+            data: { trees: t },
+          } = await p(e, `yarn list --pattern ${n} --depth=0 --json`),
+          a = await d(e, `yarn outdated ${n} --json`),
+          r = D(a),
+          s = P(e, n),
+          o = O(e, n),
+          i = t.find((e) => e.name.split("@")[0] === n),
+          c = null == i ? void 0 : i.name.split("@")[1],
+          l = j(c, r[n]),
+          m = x(c, l, r[n]);
+        return {
+          manager: "yarn",
+          required: o,
+          name: n,
+          type: s,
+          installed: c,
+          wanted: l,
+          latest: m,
+        };
+      })(e, n[0].name);
+  },
+  R = { prod: "-S", dev: "-D", global: "-g", extraneous: "" },
+  C = (e, n = 10) => {
+    const t = [];
+    for (let a = 0; a < e.length; a += n) {
+      const r = e.slice(a, a + n);
+      t.push(r);
+    }
+    return t;
+  },
+  I = {},
+  _ = async (e, n) => {
+    var t, a;
+    const r = I[`${n}-${e}`];
+    if (r) return r;
+    const s = await p(void 0, `${n} info ${e} --json`),
+      o = "yarn" === n ? s.data : s,
+      i = ((e) => e.slice(0, Math.max(0, e.lastIndexOf("@"))))(e),
+      c = ((e) => e.slice(Math.max(0, e.lastIndexOf("@") + 1)))(e);
+    return (
+      (I[`${n}-${e}`] = {
+        name: i,
+        version: c,
+        versions: o.versions,
+        homepage: o.homepage,
+        repository:
+          null === (t = o.repository) || void 0 === t ? void 0 : t.url,
+        size: +o.dist.unpackedSize,
+        time: o.time,
+        updated: o.time.modified,
+        created: o.time.created,
+      }),
+      {
+        name: i,
+        version: c,
+        versions: o.versions,
+        homepage: o.homepage,
+        repository:
+          null === (a = o.repository) || void 0 === a ? void 0 : a.url,
+        size: +o.dist.unpackedSize,
+        time: o.time,
+        updated: o.time.modified,
+        created: o.time.created,
+      }
+    );
+  },
+  z = (e, n) =>
+    new Promise((t, a) => {
+      const s = {
+          hostname: e,
+          port: 443,
+          path: encodeURI(n),
+          method: "GET",
+          headers: { "User-Agent": "npm-gui" },
+        },
+        i = o(r).request(s, (e) => {
+          let n = "";
+          (e.on("data", (e) => {
+            n += e.toString();
+          }),
+            e.on("end", () => {
+              t(n);
+            }));
+        });
+      (i.on("error", (e) => {
+        a(e);
+      }),
+        i.end());
+    }),
+  J = {},
+  M = async (e) => {
+    const n = J[e];
+    if (n) return n;
+    try {
+      var t, a;
+      const n =
+        null ===
+          (t = (
+            await z("snyk.io", `/advisor/npm-package/${e}/badge.svg`)
+          ).match(/>(?<score>\d+)\//)) ||
+        void 0 === t ||
+        null === (a = t.groups) ||
+        void 0 === a
+          ? void 0
+          : a.score;
+      return n ? ((J[e] = { name: e, score: +n }), J[e]) : void 0;
+    } catch (e) {
+      return void console.error(e);
+    }
+  },
+  U = (e, n) => k(e, n),
+  A = (e) => {
+    let n = [];
+    if ((0, t.existsSync)(e)) {
+      n = (0, t.readdirSync)(e);
+      for (const [, a] of n.entries()) {
+        const n = `${e}/${a}`;
+        (0, t.lstatSync)(n).isDirectory() ? A(n) : (0, t.unlinkSync)(n);
+      }
+      (0, t.rmdirSync)(e);
+    }
+  },
+  B = (e) => o(a).normalize(Buffer.from(e, "base64").toString()),
+  H = ({ params: e }) => {
+    let n = void 0 !== e.path ? o(a).normalize(B(e.path)) : null,
+      r = !1;
+    (null !== n && (0, t.existsSync)(n)) || ((n = process.cwd()), (r = !0));
+    return {
+      ls: (0, t.readdirSync)(n).map((e) => ({
+        name: e,
+        isDirectory: (0, t.lstatSync)(`${n}/${e}`).isDirectory(),
+        isProject: [
+          "package.json",
+          "package-lock.json",
+          "yarn.lock",
+          "pnpm-lock.yaml",
+        ].includes(e),
+      })),
+      changed: r,
+      path: n,
+    };
+  };
+function F(e, n, t) {
+  return (
+    n in e
+      ? Object.defineProperty(e, n, {
+          value: t,
+          enumerable: !0,
+          configurable: !0,
+          writable: !0,
+        })
+      : (e[n] = t),
+    e
+  );
+}
+var L = a.resolve(__dirname, "../server");
+const Z = {
+  ".html": "text/html",
+  ".js": "text/javascript",
+  ".css": "text/css",
+  ".json": "application/json",
+  ".png": "image/png",
+  ".jpg": "image/jpg",
+  ".gif": "image/gif",
+  ".svg": "image/svg+xml",
+  ".wav": "audio/wav",
+  ".mp4": "video/mp4",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+  ".ttf": "font/ttf",
+  ".eot": "vnd/ms-fontobject",
+  ".otf": "font/otf",
+  ".wasm": "application/wasm",
+  ".map": "application/json",
+  ".css.map": "application/json",
+  ".js.map": "application/json",
+};
+class G {
+  static parseUrlParams(e, n) {
+    const t = e
+        .split(/:\w+/g)
+        .filter((e) => e)
+        .reduce((e, n) => e.replace(n, "|"), n)
+        .split("|")
+        .filter((e) => e),
+      a = e.match(/:\w+/g),
+      r =
+        null == a
+          ? void 0
+          : a.reduce((e, n, a) => ({ ...e, [n.replace(":", "")]: t[a] }), {});
+    return null != r ? r : {};
+  }
+  static async readBody(e) {
+    return new Promise((n) => {
+      let t = "";
+      (e.on("data", (e) => {
+        t += e;
+      }),
+        e.on("end", () => {
+          try {
+            n(JSON.parse(t));
+          } catch {
+            n({});
+          }
+        }));
+    });
+  }
+  listen(e, n) {
+    (this.server.listen(e, n), console.log("listening on:", n, e));
+  }
+  use(e, n) {
+    this.middlewares.push({ url: e, callback: n });
+  }
+  get(e, n) {
+    this.responsers.push({ url: e, method: "GET", callback: n });
+  }
+  post(e, n) {
+    this.responsers.push({ url: e, method: "POST", callback: n });
+  }
+  delete(e, n) {
+    this.responsers.push({ url: e, method: "DELETE", callback: n });
+  }
+  any(e, n) {
+    this.responsers.push({ url: e, callback: n });
+  }
+  async onIncomingMessage(e, n) {
+    let r = { xCacheId: e.headers["x-cache-id"] };
+    const s = await G.readBody(e);
+    try {
+      for (const n of this.middlewares) {
+        const t = new RegExp(n.url.replace(/:\w+/g, ".+"));
+        if (void 0 !== e.url && t.test(e.url)) {
+          const t = G.parseUrlParams(n.url, e.url),
+            a = n.callback({ params: t, extraParams: r });
+          r = { ...r, ...a };
+        }
+      }
+      for (const t of this.responsers) {
+        const a = new RegExp(t.url.replace(/:\w+/g, ".+")),
+          o = void 0 === t.method || t.method === e.method;
+        if (!n.headersSent && void 0 !== e.url && o && a.test(e.url)) {
+          const a = G.parseUrlParams(t.url, e.url),
+            o = await t.callback({ params: a, extraParams: r, body: s });
+          "string" == typeof o
+            ? (n.writeHead(200, { "Content-Type": "text/html" }),
+              n.write(o, "utf-8"))
+            : (n.writeHead(200, { "Content-Type": "application/json" }),
+              n.write(JSON.stringify(o), "utf-8"));
+        }
+      }
+    } catch (e) {
+      (process.env.NODE_TEST || console.error("ERROR HANDLER", e),
+        n.writeHead(400, { "Content-Type": "application/json" }),
+        n.write(JSON.stringify(e), "utf-8"));
+    }
+    if (!n.headersSent && void 0 !== e.url) {
+      const r = o(a).join(L, "../", e.url);
+      if ("/" === e.url)
+        n.write(
+          o(t).readFileSync(
+            o(a).join(L, "../", "client", "index.html"),
+            "utf-8",
+          ),
+        );
+      else if (o(t).existsSync(r)) {
+        const e = o(a).extname(r).toLowerCase(),
+          s = Z[e];
+        (n.writeHead(200, { "Content-Type": s }),
+          n.write(o(t).readFileSync(r, s.includes("text") ? "utf-8" : void 0)));
+      } else
+        n.write(
+          o(t).readFileSync(
+            o(a).join(L, "../", "client", "index.html"),
+            "utf-8",
+          ),
+        );
+    }
+    n.end();
+  }
+  constructor() {
+    (F(this, "middlewares", []),
+      F(this, "responsers", []),
+      (this.server = o(s).createServer(this.onIncomingMessage.bind(this))));
+  }
+}
+const K = new G();
+(K.use("/api/project/:projectPath/", ({ params: { projectPath: e } }) => {
+  const n = B(e),
+    r = ((e) => (0, t.existsSync)(o(a).join(e, "yarn.lock")))(n),
+    s = ((e) => (0, t.existsSync)(o(a).join(e, "package.json")))(n),
+    i = ((e) => (0, t.existsSync)(o(a).join(e, "pnpm-lock.yaml")))(n);
+  if (!r && !s && !i) throw new Error("invalid project structure!");
+  let c = "npm";
+  return (
+    i ? (c = "pnpm") : r && (c = "yarn"),
+    { projectPathDecoded: n, manager: c, xCache: "any" }
+  );
+}),
+  K.get(
+    "/api/project/:projectPath/dependencies/simple",
+    ({ extraParams: { projectPathDecoded: e, manager: n } }) => U(e, n),
+  ),
+  K.get(
+    "/api/project/:projectPath/dependencies/full",
+    async ({
+      extraParams: { projectPathDecoded: e, manager: n, xCacheId: t },
+    }) => {
+      const a = u(t + n + e);
+      if (a) return a;
+      let r = [];
+      try {
+        r =
+          "yarn" === n
+            ? await (async (e) => {
+                if (void 0 !== (await d(e, "yarn check --json")))
+                  return U(e, "yarn").map((e) => ({
+                    ...e,
+                    installed: null,
+                    wanted: null,
+                    latest: null,
+                  }));
+                const {
+                    data: { trees: n },
+                  } = await p(e, "yarn list --depth=0 --json"),
+                  t = await d(e, "yarn outdated --json"),
+                  a = D(t);
+                return k(e, "yarn").map((e) => {
+                  const t = n.find((n) => n.name.split("@")[0] === e.name),
+                    r = null == t ? void 0 : t.name.split("@")[1],
+                    s = j(r, a[e.name]),
+                    o = x(r, s, a[e.name]);
+                  return { ...e, installed: r, wanted: s, latest: o };
+                });
+              })(e)
+            : "pnpm" === n
+              ? await (async (e) => {
+                  const n = b(e),
+                    [{ devDependencies: t, dependencies: a }] = await p(
+                      e,
+                      "pnpm ls --depth=0 --json",
+                    ),
+                    r = { ...t, ...a },
+                    s = {};
+                  (await E(s, e), await E(s, e, !0));
+                  const o = Object.keys(r).filter((e) => !n[e]);
+                  return [
+                    ...k(e, "pnpm"),
+                    ...o.map((e) => ({
+                      name: e,
+                      type: "extraneous",
+                      manager: "pnpm",
+                      required: void 0,
+                    })),
+                  ].map((e) => {
+                    const n = w(r[e.name]),
+                      t = j(n, s[e.name]),
+                      a = x(n, t, s[e.name]);
+                    return { ...e, installed: n, wanted: t, latest: a };
+                  });
+                })(e)
+              : await (async (e) => {
+                  const { dependencies: n } = await p(
+                      e,
+                      "npm ls --depth=0 --json",
+                    ),
+                    t = await p(e, "npm outdated --json"),
+                    a = n
+                      ? Object.keys(n).filter((e) => {
+                          const t = n[e];
+                          return t && "extraneous" in t;
+                        })
+                      : [];
+                  return [
+                    ...k(e, "npm"),
+                    ...a.map((e) => ({
+                      name: e,
+                      type: "extraneous",
+                      required: void 0,
+                      manager: "npm",
+                    })),
+                  ].map((e) => {
+                    const a = w(n ? n[e.name] : void 0),
+                      r = j(a, t[e.name]),
+                      s = x(a, r, t[e.name]);
+                    return { ...e, installed: a, wanted: r, latest: s };
+                  });
+                })(e);
+      } catch (e) {
+        return (console.error(e), []);
+      }
+      return (y(t + n + e, r), r);
+    },
+  ),
+  K.post(
+    "/api/project/:projectPath/dependencies/install/:forceManager",
+    async ({
+      params: { forceManager: e },
+      extraParams: { projectPathDecoded: n, xCacheId: r },
+    }) => (
+      ((e) => {
+        (0, t.existsSync)(`${o(a).normalize(e)}/node_modules`) &&
+          A(`${o(a).normalize(e)}/node_modules`);
+        for (const n of ["yarn.lock", "package-lock.json", "pnpm-lock.yaml"])
+          (0, t.existsSync)(`${o(a).normalize(e)}/${n}`) &&
+            (0, t.unlinkSync)(`${o(a).normalize(e)}/${n}`);
+      })(n),
+      await l(n, `${e} install`),
+      h(r + e + n),
+      {}
+    ),
+  ),
+  K.post(
+    "/api/project/:projectPath/dependencies/install",
+    async ({
+      extraParams: { projectPathDecoded: e, manager: n = "npm", xCacheId: t },
+    }) => (await l(e, `${n} install`), h(t + n + e), {}),
+  ),
+  K.post(
+    "/api/project/:projectPath/dependencies/:type",
+    async ({
+      params: { type: e },
+      extraParams: { projectPathDecoded: n, manager: t, xCacheId: a },
+      body: r,
+    }) => {
+      let s;
+      return (
+        (s =
+          "yarn" === t
+            ? await q(n, r, e)
+            : "pnpm" === t
+              ? await T(n, r, e)
+              : await N(n, r, e)),
+        s ? g(a + t + n, s) : h(a + t + n),
+        {}
+      );
+    },
+  ),
+  K.delete(
+    "/api/project/:projectPath/dependencies/:type",
+    async ({
+      params: { type: e },
+      extraParams: { projectPathDecoded: n, manager: t, xCacheId: a },
+      body: r,
+    }) => {
+      "yarn" === t
+        ? await (async (e, n) => {
+            try {
+              await l(e, `yarn remove ${n.map((e) => e.name).join(" ")}`);
+            } catch (e) {
+              process.env.NODE_TEST || console.log(e);
+            }
+          })(n, r)
+        : "pnpm" === t
+          ? await (async (e, n) => {
+              try {
+                await l(e, `pnpm uninstall ${n.map((e) => e.name).join(" ")}`);
+              } catch (e) {
+                process.env.NODE_TEST || console.log(e);
+              }
+            })(n, r)
+          : await (async (e, n, t) => {
+              await l(
+                e,
+                `npm uninstall ${n.map((e) => e.name).join(" ")} ${R[t]}`,
+              );
+            })(n, r, e);
+      for (const e of r) f(a + t + n, e.name);
+      return {};
+    },
+  ),
+  K.get(
+    "/api/global/dependencies/simple",
+    async () =>
+      await (async () => {
+        const { dependencies: e } = await p(
+          void 0,
+          "node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js ls",
+        );
+        return e
+          ? Object.keys(e).map((n) => ({
+              manager: "npm",
+              name: n,
+              type: "global",
+              installed: w(e[n]),
+            }))
+          : [];
+      })(),
+  ),
+  K.get(
+    "/api/global/dependencies/full",
+    async ({ extraParams: { xCacheId: e } }) => {
+      const n = u(`${e}global`);
+      if (n) return n;
+      const t = await (async () => {
+        const { dependencies: e } = await p(
+          void 0,
+          "node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js ls",
+        );
+        if (!e) return [];
+        const n = await p(
+          void 0,
+          "node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js outdated",
+        );
+        return Object.keys(e).map((t) => ({
+          manager: "npm",
+          name: t,
+          type: "global",
+          installed: w(e[t]),
+          latest: x(w(e[t]), null, n[t]),
+        }));
+      })();
+      return (y(`${e}global`, t), t);
+    },
+  ),
+  K.post(
+    "/api/global/dependencies",
+    async ({ body: e, extraParams: { xCacheId: n } }) => {
+      const t = await (async ({ name: e, version: n }) => {
+        await c(void 0, `npm install ${e}@${n || ""} -g`);
+        const { dependencies: t } = await p(
+            void 0,
+            `node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js ls-pkg ${e}`,
+          ),
+          a = await p(
+            void 0,
+            `node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js outdated-pkg ${e}`,
+          ),
+          r = w(t ? t[e] : void 0);
+        return {
+          manager: "npm",
+          name: e,
+          type: "global",
+          installed: r,
+          latest: x(r, null, a[e]),
+        };
+      })(e[0]);
+      return (g(`${n}global`, t), {});
+    },
+  ),
+  K.delete(
+    "/api/global/dependencies/global/:dependencyName",
+    async ({ params: { dependencyName: e }, extraParams: { xCacheId: n } }) => (
+      await (async (e) => {
+        await c(void 0, `npm uninstall ${e} -g`);
+      })(e),
+      f(`${n}global`, e),
+      {}
+    ),
+  ),
+  K.get(
+    "/api/score/:dependenciesName",
+    async ({ params: { dependenciesName: e } }) => {
+      const n = C(e.split(","), 5);
+      try {
+        const e = [];
+        for (const t of n) {
+          const n = await Promise.all(t.map((e) => M(e)));
+          e.push(...n.filter(i));
+        }
+        return e;
+      } catch {
+        return [];
+      }
+    },
+  ),
+  K.get(
+    "/api/details/:manager/:dependenciesNameVersion",
+    async ({ params: { dependenciesNameVersion: e, manager: n } }) => {
+      const t = C(e.split(","));
+      try {
+        const e = [];
+        for (const a of t) {
+          const t = await Promise.all(a.map((e) => _(e, n)));
+          e.push(...t.filter(i));
+        }
+        return e;
+      } catch (e) {
+        return (console.error(e), []);
+      }
+    },
+  ),
+  K.get("/api/explorer/:path", H),
+  K.get("/api/explorer/", H),
+  K.get("/api/available-managers", async () => {
+    let e = !0,
+      n = !0,
+      t = !0;
+    try {
+      await l(void 0, "npm --version");
+    } catch {
+      e = !1;
+    }
+    try {
+      await l(void 0, "yarn --version");
+    } catch {
+      n = !1;
+    }
+    try {
+      await l(void 0, "pnpm --version");
+    } catch {
+      t = !1;
+    }
+    return { npm: e, pnpm: t, yarn: n };
+  }),
+  K.post("/api/search/:repoName", async ({ body: { query: e } }) => {
+    const n = await z("api.npms.io", `/v2/search?from=0&size=25&q=${e}`),
+      t = $(n);
+    if (!t) throw new Error("Unable to get package info");
+    return t.results.map((e) => ({
+      name: e.package.name,
+      version: e.package.version,
+      score: e.score.final,
+      updated: e.package.date,
+      npm: e.package.links.npm,
+      repository: e.package.links.repository,
+      homepage: e.package.links.homepage,
+      description: e.package.description,
+    }));
+  }),
+  K.get("/api/info/:id", async ({ params: { id: e } }) =>
+    z("v4.npm-gui.nullapps.dev", `/info.html?${e}`),
+  ));
+module.exports = {
+  start: (n = "localhost", t = 3e3, a = !1) => {
+    (K.listen(t, n), a && o(e)(`http://${n}:${t}`));
+  },
+  app: K,
+};
