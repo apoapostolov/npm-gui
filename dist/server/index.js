@@ -796,26 +796,41 @@ const K = new G();
   K.post(
     "/api/global/dependencies",
     async ({ body: e, extraParams: { xCacheId: n } }) => {
-      const t = await (async ({ name: e, version: n }) => {
-        await c(void 0, `npm install ${e}@${n || ""} -g`);
-        const { dependencies: t } = await p(
-            void 0,
-            `node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js ls-pkg ${e}`,
-          ),
-          a = await p(
-            void 0,
-            `node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js outdated-pkg ${e}`,
-          ),
-          r = w(t ? t[e] : void 0);
-        return {
-          manager: "npm",
-          name: e,
-          type: "global",
-          installed: r,
-          latest: x(r, null, a[e]),
-        };
-      })(e[0]);
-      return (g(`${n}global`, t), {});
+      for (const s of e || []) {
+        if (!s || !s.name) continue;
+        try {
+          const t = await (async ({ name: e, version: n }) => {
+            await c(
+              void 0,
+              `node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js install-pkg ${e} ${n || ""}`,
+            );
+            const { dependencies: t } = await p(
+                void 0,
+                `node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js ls-pkg ${e}`,
+              ),
+              a = await p(
+                void 0,
+                `node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js outdated-pkg ${e}`,
+              ),
+              r = w(t ? t[e] : void 0);
+            return {
+              manager: "npm",
+              name: e,
+              type: "global",
+              installed: r,
+              latest: x(r, null, a[e]),
+            };
+          })(s);
+          g(`${n}global`, t);
+        } catch (err) {
+          console.error("global bulk install error for", s && s.name, err);
+        }
+      }
+      p(
+        void 0,
+        `node /home/apoapostolov/.npm-global/lib/node_modules/npm-gui/dist/server/ls-global.js clear-outdated`,
+      ).catch(() => {});
+      return {};
     },
   ),
   K.delete(
