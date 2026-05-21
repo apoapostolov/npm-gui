@@ -181,4 +181,11 @@ if (mode === 'ls') {
   const o = getOutdated(true);
   if (o[pkg]) console.log(JSON.stringify({ [pkg]: o[pkg] }));
   else console.log('{}');
+} else if (mode === 'clear-outdated' || mode === 'refresh-outdated') {
+  try {
+    const { unlinkSync, existsSync } = require('fs');
+    if (existsSync(OUTDATED_CACHE_FILE)) unlinkSync(OUTDATED_CACHE_FILE);
+    outdatedCache = { ts: 0, data: null };
+  } catch {}
+  console.log('{}');
 }
