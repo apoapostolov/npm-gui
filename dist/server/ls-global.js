@@ -159,6 +159,8 @@ function getOutdated(force = false) {
     try { if (out1) o1 = JSON.parse(out1); } catch {}
     try { if (out2) o2 = JSON.parse(out2); } catch {}
     const merged = { ...o1, ...o2 };
+    // Self-protection: never let the registry tell us we need to "downgrade" or update our own 4.1.0 fork
+    delete merged['npm-gui'];
     flushOutdatedCache(merged);
     return merged;
   } catch {
@@ -167,6 +169,10 @@ function getOutdated(force = false) {
 }
 
 function findPrefixForPackage(name) {
+  if (name === 'npm-gui') {
+    // Self-protection: never let the registry decide our version or suggest "updates" to official 4.0.x
+    return NPMG;
+  }
   try {
     const a = run(NPMG);
     if (a && a.dependencies && a.dependencies[name]) return NPMG;
@@ -188,9 +194,13 @@ if (mode === 'ls') {
   const merged = { ...enrich(a.dependencies), ...enrich(b.dependencies) };
   console.log(JSON.stringify({ dependencies: { [pkg]: merged[pkg] || null } }));
 } else if (mode === 'outdated-pkg' && pkg) {
-  const o = getOutdated(true);
-  if (o[pkg]) console.log(JSON.stringify({ [pkg]: o[pkg] }));
-  else console.log('{}');
+  if (pkg === 'npm-gui') {
+    console.log('{}'); // never report updates for ourselves
+  } else {
+    const o = getOutdated(true);
+    if (o[pkg]) console.log(JSON.stringify({ [pkg]: o[pkg] }));
+    else console.log('{}');
+  }
 } else if (mode === 'clear-outdated' || mode === 'refresh-outdated') {
   try {
     const { unlinkSync, existsSync } = require('fs');
@@ -203,6 +213,9 @@ if (mode === 'ls') {
   const ver = process.argv[4] || 'latest';
   if (!name) {
     console.log('{}');
+  } else if (name === 'npm-gui') {
+    // Self-protection: never attempt to "update" our own patched 4.1.0 fork from the public registry
+    console.log(JSON.stringify({ ok: true, self: true, protected: true }));
   } else {
     const prefix = findPrefixForPackage(name);
     try {
